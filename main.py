@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
 import plotly.express as px
-from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
@@ -11,10 +10,34 @@ import os
 st.set_page_config(page_title="Analiză voturi prezidențiale 2025", layout="wide")
 st.title("🗳️ Analiză creșteri și anomalii voturi - Tur 1 vs Tur 2")
 
-# Load API key din .env
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key)
+# Linkuri descarcare CSV
+st.markdown("""
+### 📥 Descarcă fișierele CSV pentru Turul 1 și Turul 2:
+- [Descarcă Turul 1 (Google Drive)](https://drive.google.com/uc?export=download&id=1LiB1QDutQO-OCK-qMabMKwsklDt1gicp)
+- [Descarcă Turul 2 (Google Drive)](https://drive.google.com/uc?export=download&id=1rRlfKm2u3N6TckYeDteO1fPAlgoBH9bg)
+- [Date oficiale prezenta.roaep.ro](https://prezenta.roaep.ro/prezidentiale18052025/pv/results)
+""")
+
+# Sidebar Help / Explicații
+with st.sidebar.expander("❓ Help / Explicații rapoarte"):
+    st.markdown("""
+    ### Cum să interpretezi raportul de voturi între turul 1 și turul 2
+
+    - **Delta GS / Delta ND**: diferența numerică de voturi obținute de candidați între turul 2 și turul 1.  
+      Exemplu: dacă „Delta GS” = 45, înseamnă că George Simion a primit cu 45 de voturi mai mult în turul 2 față de turul 1.
+
+    - **Raport GS / Raport ND**: raportul dintre voturile din turul 2 și cele din turul 1.  
+      Exemplu: dacă „Raport GS” = 1.45, înseamnă o creștere cu 45% față de turul 1 (1.00 = nicio schimbare, 0.8 = scădere cu 20%).
+
+    - **Z-score**: măsoară cât de mult diferă o valoare de media întregului set de date, în unități de deviație standard.  
+      Un Z-score mare (ex: > 3) indică o schimbare neobișnuită, posibil suspectă.
+
+    - **Anomalie IF (Isolation Forest)**: algoritm de detecție automată a valorilor „atipice” care nu se încadrează în modelul normal.  
+      Dacă ești marcat ca anomalie, înseamnă că schimbarea voturilor e neobișnuită comparativ cu alte secții/zone.
+
+    ---
+    Poți selecta tipurile de anomalii în sidebar pentru a filtra tabelul și graficul.
+    """)
 
 # Upload CSVs
 uploaded_file1 = st.file_uploader("Încarcă fișier CSV Tur 1", type=["csv"])
@@ -136,24 +159,3 @@ if uploaded_file1 and uploaded_file2:
     )
     fig.update_layout(xaxis_title=agregare, xaxis_showticklabels=False, height=600)
     st.plotly_chart(fig, use_container_width=True)
-
-    # Buton pentru generare raport
-    if st.button("📄 Generează raport automat"):
-        # Trimitem doar top 10 rânduri ca text CSV pentru prompt
-        prompt_df = df_filtered.head(10).to_csv(index=False)
-        prompt = f"Analizează următoarele date despre variația voturilor între tururile 1 și 2:\n\n{prompt_df}\n\n"
-        prompt += "Generează un raport în limba română cu observații, posibile suspiciuni, și concluzii."
-
-        with st.spinner("Se generează raportul..."):
-            client = OpenAI()
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            raport = response.choices[0].message.content
-
-        st.subheader("📊 Raport generat automat")
-        st.markdown(raport)
-
-else:
-    st.info("Încarcă ambele fișiere CSV pentru analiza voturilor.")
